@@ -313,6 +313,13 @@ for update
 using (public.is_admin_of_employee(employees))
 with check (public.is_admin_of_employee(employees));
 
+-- Allow employees to view their own employee record (for self-service UIs)
+drop policy if exists employees_select_self on public.employees;
+create policy employees_select_self
+on public.employees
+for select
+using (user_id = auth.uid());
+
 -- 6) Keep updated_at in sync
 create or replace function public.set_updated_at()
 returns trigger
@@ -376,6 +383,54 @@ drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
 after insert on auth.users
 for each row execute function public.handle_new_user();
+
+-- Ensure a company row exists for business_admin profiles (idempotent)
+create or replace function public.ensure_company_for_admin()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $func$
+begin
+  if new.role = 'business_admin' then
+    if not exists (select 1 from public.companies where owner_user_id = new.user_id) then
+      insert into public.companies (owner_user_id, company_name, subscription_status, trial_start_at, trial_end_at)
+      values (
+        new.user_id,
+        coalesce(new.company_name, split_part(new.email, '@', 2)),
+        'trialing',
+        now(),
+        now() + interval '14 days'
+      );
+    end if;
+  end if;
+  return new;
+end;
+$func$;
+
+drop trigger if exists on_profile_created_ensure_company on public.profiles;
+create trigger on_profile_created_ensure_company
+after insert on public.profiles
+for each row execute function public.ensure_company_for_admin();
+
+-- 7.5) payroll runs table (for dashboard next payroll)
+create table if not exists public.payroll_runs (
+  id uuid primary key default gen_random_uuid(),
+  company_id uuid not null references public.companies(id) on delete cascade,
+  scheduled_at timestamptz not null,
+  status text not null default 'scheduled',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists payroll_runs_company_idx on public.payroll_runs(company_id);
+create index if not exists payroll_runs_scheduled_idx on public.payroll_runs(scheduled_at);
+alter table public.payroll_runs enable row level security;
+drop policy if exists payroll_runs_admin_all on public.payroll_runs;
+create policy payroll_runs_admin_all
+on public.payroll_runs
+for all
+using (exists (select 1 from public.companies c where c.id = payroll_runs.company_id and c.owner_user_id = auth.uid()))
+with check (exists (select 1 from public.companies c where c.id = payroll_runs.company_id and c.owner_user_id = auth.uid()));
 
 -- 8) shifts (rota) table
 create table if not exists public.shifts (

@@ -98,11 +98,3 @@ export default async function SectionPage({ params }: { params: Promise<{ sectio
   );
 }
 
-export function generateStaticParams() {
-  return [
-    { section: "employees" },
-    { section: "rota" },
-    { section: "leave" },
-    { section: "payroll" },
-  ];
-}
