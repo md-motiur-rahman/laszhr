@@ -13,12 +13,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 401 });
   }
 
-  const role = data.user?.user_metadata?.role;
-  if (role !== "business_admin") {
-    await supabase.auth.signOut();
-    return NextResponse.json({ error: "This account is not a business admin." }, { status: 403 });
+  const role = data.user?.user_metadata?.role || "business_admin";
+
+  // Handle employee login
+  if (role === "employee") {
+    // Employees go directly to dashboard
+    return NextResponse.json({ next: "/dashboard", role: "employee" }, { status: 200 });
   }
 
+  // Handle business admin login
   // Determine next path based on company profile completion
   const { data: company, error: companyErr } = await supabase
     .from("companies")
@@ -29,5 +32,5 @@ export async function POST(req: NextRequest) {
   const completed = !companyErr && company && company.address && company.phone && company.company_email && company.paye_ref;
   const next = completed ? "/dashboard" : "/company/profile";
 
-  return NextResponse.json({ next }, { status: 200 });
+  return NextResponse.json({ next, role: "business_admin" }, { status: 200 });
 }

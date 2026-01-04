@@ -5,6 +5,7 @@ const PUBLIC_PATHS = new Set<string>([
   "/", // landing page
   "/sign-in",
   "/sign-up",
+  "/employee-signup", // employee invitation sign-up
   "/auth/callback", // email confirmation callback
 ]);
 
@@ -40,8 +41,18 @@ export async function middleware(req: NextRequest) {
     // If unauthenticated, allow
     if (!session) return res;
 
-    // If authenticated and trying to access sign-in or sign-up, redirect based on company profile completion
-    if (pathname === "/sign-in" || pathname === "/sign-up") {
+    // If authenticated and trying to access sign-in or sign-up, redirect based on role and profile completion
+    if (pathname === "/sign-in" || pathname === "/sign-up" || pathname === "/employee-signup") {
+      const role = (session.user.user_metadata as any)?.role;
+      
+      // Employees go directly to dashboard
+      if (role === "employee") {
+        const redirectUrl = req.nextUrl.clone();
+        redirectUrl.pathname = "/dashboard";
+        return NextResponse.redirect(redirectUrl);
+      }
+      
+      // Business admins check company profile completion
       const profileCompleted = await isCompanyProfileCompleted(supabase, session.user.id);
       const redirectUrl = req.nextUrl.clone();
       redirectUrl.pathname = profileCompleted ? "/dashboard" : "/company/profile";
@@ -58,6 +69,13 @@ export async function middleware(req: NextRequest) {
     redirectUrl.pathname = "/sign-in";
     redirectUrl.searchParams.set("redirect", pathname);
     return NextResponse.redirect(redirectUrl);
+  }
+
+  const role = (session.user.user_metadata as any)?.role;
+
+  // Employees skip company profile check and billing gate
+  if (role === "employee") {
+    return res;
   }
 
   // If authenticated but company profile is not completed, restrict access to only /company/profile

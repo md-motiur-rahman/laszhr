@@ -65,3 +65,35 @@ body {
     animation: none !important;
   }
 }
+
+/* Safe area insets for mobile devices (notch, home indicator) */
+.safe-area-inset-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.safe-area-inset-top {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+/* Touch feedback for mobile */
+@media (hover: none) {
+  .active\:scale-\[0\.98\]:active {
+    transform: scale(0.98);
+  }
+}
+
+/* Smooth scrolling on iOS */
+.overflow-y-auto {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Hide scrollbar on mobile for cleaner look */
+@media (max-width: 768px) {
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}

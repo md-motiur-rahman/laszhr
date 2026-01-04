@@ -18,6 +18,16 @@ type Shift = {
 
 type Employee = { id: string; full_name: string; department: string | null };
 
+type LeaveRequest = {
+  id: string;
+  employee_id: string;
+  employee_name: string;
+  leave_type: string;
+  start_date: string;
+  end_date: string;
+  status: string;
+};
+
 type ExportShiftRow = {
   start_time: string;
   end_time: string;
@@ -51,6 +61,7 @@ export default function RotaClient({
 
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [shifts, setShifts] = useState<Shift[]>([]);
+  const [approvedLeave, setApprovedLeave] = useState<LeaveRequest[]>([]);
   const [deptFilter, setDeptFilter] = useState<string>("");
   const [dragLabel, setDragLabel] = useState<string | null>(null);
 
@@ -119,9 +130,8 @@ export default function RotaClient({
       .lt("start_time", new Date(refMonthDate.getFullYear(), refMonthDate.getMonth() + 1, 1, 0, 0, 0, 0).toISOString())
       .order("start_time", { ascending: true });
 
-    if (role !== "business_admin" && userId) {
-      query = query.eq("assigned_user_id", userId);
-    }
+    // For employees, filter by their employee_id (passed as filterEmployeeId)
+    // For admins viewing a specific employee, also filter by filterEmployeeId
     if (filterEmployeeId) {
       query = query.eq("employee_id", filterEmployeeId);
     }
@@ -145,19 +155,65 @@ export default function RotaClient({
     );
   }
 
+  // Load approved leave requests for the visible month range
+  async function loadApprovedLeave() {
+    if (!companyId) return;
+    
+    // Get the grid range (first and last day visible on calendar)
+    const gridStart = gridDays[0];
+    const gridEnd = gridDays[gridDays.length - 1];
+    const startStr = formatYMD(gridStart);
+    const endStr = formatYMD(gridEnd);
+
+    let query = supabase
+      .from("leave_requests")
+      .select("id, employee_id, leave_type, start_date, end_date, status, employees:employee_id(full_name)")
+      .eq("company_id", companyId)
+      .eq("status", "approved")
+      // Leave overlaps with grid range: start_date <= gridEnd AND end_date >= gridStart
+      .lte("start_date", endStr)
+      .gte("end_date", startStr);
+
+    // Filter by employee if viewing specific employee
+    if (filterEmployeeId) {
+      query = query.eq("employee_id", filterEmployeeId);
+    }
+
+    const { data, error } = await query;
+    if (error) {
+      console.error("loadApprovedLeave error:", error.message);
+      setApprovedLeave([]);
+      return;
+    }
+
+    setApprovedLeave(
+      (data as any)?.map((l: any) => ({
+        id: l.id,
+        employee_id: l.employee_id,
+        employee_name: l.employees?.full_name || "",
+        leave_type: l.leave_type,
+        start_date: l.start_date,
+        end_date: l.end_date,
+        status: l.status,
+      })) || []
+    );
+  }
+
   useEffect(() => {
     loadEmployees();
   }, [companyId]);
 
   useEffect(() => {
     loadShifts();
-  }, [companyId, monthStart.toISOString(), monthEnd.toISOString(), role, userId]);
+    loadApprovedLeave();
+  }, [companyId, monthStart.toISOString(), monthEnd.toISOString(), role, userId, filterEmployeeId]);
 
   useEffect(() => {
     if (!companyId) return;
     const channel = supabase
       .channel("rota-realtime")
       .on("postgres_changes", { event: "*", schema: "public", table: "shifts" }, () => loadShifts())
+      .on("postgres_changes", { event: "*", schema: "public", table: "leave_requests" }, () => loadApprovedLeave())
       .subscribe();
     return () => {
       void supabase.removeChannel(channel);
@@ -250,6 +306,36 @@ export default function RotaClient({
     });
     return map;
   }, [gridDays, shifts]);
+
+  // Map of approved leave by day - returns array of leave requests that cover each day
+  const leaveByDay = useMemo(() => {
+    const map = new Map<string, LeaveRequest[]>();
+    gridDays.forEach((d) => map.set(dayKey(d), []));
+    
+    approvedLeave.forEach((leave) => {
+      // Parse start and end dates
+      const startDate = new Date(leave.start_date + "T00:00:00");
+      const endDate = new Date(leave.end_date + "T00:00:00");
+      
+      // For each day in the grid, check if it falls within this leave period
+      gridDays.forEach((d) => {
+        const dayDate = new Date(d);
+        dayDate.setHours(0, 0, 0, 0);
+        
+        if (dayDate >= startDate && dayDate <= endDate) {
+          const key = dayKey(d);
+          const arr = map.get(key) || [];
+          // Avoid duplicates
+          if (!arr.some((l) => l.id === leave.id)) {
+            arr.push(leave);
+            map.set(key, arr);
+          }
+        }
+      });
+    });
+    
+    return map;
+  }, [gridDays, approvedLeave]);
 
   async function handleDropOnDay(ev: React.DragEvent, day: Date) {
     ev.preventDefault?.();
@@ -708,12 +794,15 @@ export default function RotaClient({
                     >
                       {downloading ? "Generating…" : "Download PDF"}
                     </button>
-                    <button
-                      onClick={emailRota}
-                      className="h-7 px-3 rounded-md border border-indigo-300 bg-white text-indigo-700 hover:bg-indigo-50"
-                    >
-                      Email rota (ICS)
-                    </button>
+                    {/* Email button only for admins */}
+                    {role === "business_admin" && (
+                      <button
+                        onClick={emailRota}
+                        className="h-7 px-3 rounded-md border border-indigo-300 bg-white text-indigo-700 hover:bg-indigo-50"
+                      >
+                        Email rota (ICS)
+                      </button>
+                    )}
                   </div>
                 </>
               )}
@@ -728,6 +817,7 @@ export default function RotaClient({
                   const inMonth = sameMonth(d, refMonthDate);
                   const baseShifts = (shiftsByDay.get(key) || []);
                   const dayShifts = filterEmployeeId ? baseShifts : baseShifts.filter((s) => !deptFilter || (s.department || "") === deptFilter);
+                  const dayLeave = leaveByDay.get(key) || [];
                   return (
                     <div
                       key={d.toISOString()}
@@ -750,14 +840,32 @@ export default function RotaClient({
                         )}
                       </div>
                       <div className="mt-2 space-y-1">
+                        {/* Show approved leave labels only when viewing specific employee */}
+                        {filterEmployeeId && dayLeave.map((leave) => (
+                          <div
+                            key={`leave-${leave.id}`}
+                            className="rounded border border-amber-300 bg-amber-50 px-2 py-1 text-[11px]"
+                            title={`${leave.employee_name} - ${leave.leave_type} leave (approved)`}
+                          >
+                            <div className="font-medium text-amber-800 break-words flex items-center gap-1">
+                              <svg className="h-3 w-3 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+                              </svg>
+                              <span className="truncate">{leave.employee_name}</span>
+                            </div>
+                            <div className="mt-0.5 text-[10px] text-amber-700 capitalize">
+                              On Leave ({leave.leave_type})
+                            </div>
+                          </div>
+                        ))}
                         {dayShifts.map((s) => (
                           <div
                             key={s.id}
                             draggable={role === "business_admin"}
                             onDragStart={(ev) => onDragStartShift(s, ev)}
                             onDragEnd={onDragEnd}
-                            onClick={() => openEditor(s)}
-                            className="relative rounded border text-slate-800 px-2 pr-6 py-1 text-[11px] hover:brightness-105 cursor-pointer"
+                            onClick={() => role === "business_admin" && openEditor(s)}
+                            className={`relative rounded border text-slate-800 px-2 pr-6 py-1 text-[11px] hover:brightness-105 ${role === "business_admin" ? "cursor-pointer" : "cursor-default"}`}
                             style={{ backgroundColor: colorFor(s.employee_id, 0.18), borderColor: colorFor(s.employee_id, 0.35) }}
                             title={`${s.employee_name} — ${new Date(s.start_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}–${new Date(s.end_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`}
                           >
@@ -779,7 +887,7 @@ export default function RotaClient({
                             )}
                           </div>
                         ))}
-                        {dayShifts.length === 0 && (
+                        {dayShifts.length === 0 && (!filterEmployeeId || dayLeave.length === 0) && (
                           <div className="text-[10px] text-slate-400">{inMonth ? "Drop here" : ""}</div>
                         )}
                       </div>

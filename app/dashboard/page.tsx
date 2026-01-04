@@ -1,7 +1,9 @@
 import ProtectedShell from "@/components/ProtectedShell";
+import EmployeeShell from "@/components/EmployeeShell";
 import { cookies } from "next/headers";
 import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
 import DashboardClient, { type DashboardData } from "@/components/DashboardClient";
+import EmployeeDashboardClient, { type EmployeeDashboardData } from "@/components/EmployeeDashboardClient";
 
 async function countInRange(
   supabase: ReturnType<typeof createServerComponentClient>,
@@ -33,6 +35,36 @@ export default async function DashboardPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
+  const role = (user?.user_metadata as any)?.role || "business_admin";
+
+  // If employee, render employee dashboard
+  if (role === "employee") {
+    // Find the employee record linked to this user
+    const { data: employee } = await supabase
+      .from("employees")
+      .select("id, company_id, full_name, department, companies:company_id(company_name)")
+      .eq("user_id", user?.id || "")
+      .maybeSingle();
+
+    const employeeData: EmployeeDashboardData = {
+      employeeId: employee?.id || null,
+      companyId: employee?.company_id || null,
+      employeeName: employee?.full_name || null,
+      companyName: (employee?.companies as any)?.company_name || null,
+      department: employee?.department || null,
+    };
+
+    return (
+      <EmployeeShell 
+        employeeName={employeeData.employeeName}
+        companyName={employeeData.companyName}
+      >
+        <EmployeeDashboardClient initial={employeeData} />
+      </EmployeeShell>
+    );
+  }
+
+  // Admin dashboard
   // Fetch company id for the admin
   const { data: company } = await supabase
     .from("companies")

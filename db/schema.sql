@@ -263,6 +263,7 @@ create table if not exists public.employees (
   date_of_birth date,
   joined_at date,
   department text,
+  position text,
 
   -- UK bank details
   bank_account_name text,
@@ -282,6 +283,7 @@ create index if not exists employees_company_idx on public.employees(company_id)
 create unique index if not exists employees_company_email_key on public.employees(company_id, lower(email)) where email is not null;
 
 alter table if exists public.employees add column if not exists joined_at date;
+alter table if exists public.employees add column if not exists position text;
 
 alter table public.employees enable row level security;
 
@@ -293,12 +295,27 @@ create or replace function public.is_admin_of_employee(emp public.employees) ret
   );
 $$;
 
--- RLS policies for employees (admin-only for now)
+-- RLS policies for employees
 drop policy if exists employees_select_admin on public.employees;
 create policy employees_select_admin
 on public.employees
 for select
 using (public.is_admin_of_employee(employees));
+
+-- Allow employees to read their own record
+drop policy if exists employees_select_self on public.employees;
+create policy employees_select_self
+on public.employees
+for select
+using (user_id = auth.uid());
+
+-- Allow employees to update limited fields on their own record (phone, address)
+drop policy if exists employees_update_self on public.employees;
+create policy employees_update_self
+on public.employees
+for update
+using (user_id = auth.uid())
+with check (user_id = auth.uid());
 
 drop policy if exists employees_insert_admin on public.employees;
 create policy employees_insert_admin
@@ -352,32 +369,69 @@ returns trigger
 language plpgsql
 security definer
 set search_path = public
-as $$
+as $handle_new_user$
+declare
+  v_role user_role_type;
+  v_role_text text;
+  v_company_name text;
+  v_company_id uuid;
 begin
+  -- Extract role from metadata and validate it
+  v_role_text := coalesce(new.raw_user_meta_data->>'role', 'business_admin');
+  
+  -- Cast to enum, defaulting to business_admin if invalid
+  if v_role_text = 'employee' then
+    v_role := 'employee'::user_role_type;
+  else
+    v_role := 'business_admin'::user_role_type;
+  end if;
+
+  -- Get company_name from metadata first
+  v_company_name := new.raw_user_meta_data->>'company_name';
+  
+  -- For employees, if company_name is not in metadata, try to fetch from companies table
+  if v_role = 'employee' and v_company_name is null then
+    v_company_id := (new.raw_user_meta_data->>'company_id')::uuid;
+    if v_company_id is not null then
+      select company_name into v_company_name
+      from public.companies
+      where id = v_company_id;
+    end if;
+    
+    -- If still null, try to find via employee email
+    if v_company_name is null and new.email is not null then
+      select c.company_name into v_company_name
+      from public.employees e
+      join public.companies c on c.id = e.company_id
+      where lower(e.email) = lower(new.email)
+      limit 1;
+    end if;
+  end if;
+
   begin
     insert into public.profiles (user_id, email, full_name, company_name, role, created_at, updated_at)
     values (
       new.id,
       new.email,
       coalesce(new.raw_user_meta_data->>'full_name', null),
-      coalesce(new.raw_user_meta_data->>'company_name', null),
-      coalesce(new.raw_user_meta_data->>'role', 'business_admin'),
+      v_company_name,
+      v_role,
       now(),
       now()
     )
     on conflict (user_id) do update set
       email = excluded.email,
-      full_name = excluded.full_name,
-      company_name = excluded.company_name,
+      full_name = coalesce(excluded.full_name, profiles.full_name),
+      company_name = coalesce(excluded.company_name, profiles.company_name),
       role = excluded.role,
       updated_at = now();
   exception when others then
-    -- Avoid failing user creation if profile insert has any issue
-    perform 1;
+    -- Log the error but don't fail user creation
+    raise warning 'Profile creation failed for user %: %', new.id, sqlerrm;
   end;
   return new;
 end;
-$$;
+$handle_new_user$;
 
 drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
@@ -482,6 +536,16 @@ create policy shifts_delete_admin on public.shifts for delete using (public.is_a
 -- Employee can read own assigned shifts (when assigned_user_id is set)
 drop policy if exists shifts_select_assigned_user on public.shifts;
 create policy shifts_select_assigned_user on public.shifts for select using (assigned_user_id = auth.uid());
+
+-- Employee can read shifts assigned to their employee record (via employees.user_id link)
+drop policy if exists shifts_select_employee on public.shifts;
+create policy shifts_select_employee on public.shifts for select using (
+  exists (
+    select 1 from public.employees e
+    where e.id = employee_id
+      and e.user_id = auth.uid()
+  )
+);
 
 -- updated_at trigger
 drop trigger if exists tr_shifts_set_updated_at on public.shifts;

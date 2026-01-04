@@ -227,6 +227,18 @@ export default function EmployeesClient({ companyId, companyName }: { companyId:
     const { error } = await supabase.from("employees").insert(payload);
     if (error) setError(error.message);
     else {
+      // Send invitation email to the employee (fire-and-forget)
+      if (payload.email) {
+        fetch("/api/employees/invite", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: payload.email,
+            fullName: payload.full_name,
+            companyId,
+          }),
+        }).catch(() => {});
+      }
       setOpen(false);
       setForm({});
     }

@@ -1,9 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { supabase } from "@/lib/supabaseClient";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import Logo from "@/components/Logo";
 
 export default function SignInPage() {
@@ -11,7 +9,6 @@ export default function SignInPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const router = useRouter();
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -36,7 +33,7 @@ export default function SignInPage() {
 
     // After cookies are set, navigate to the next route returned by the server
     const body = await resp.json().catch(() => ({}));
-    const next = body.next || "/company/profile";
+    const next = body.next || "/dashboard";
     window.location.assign(next);
   };
 
@@ -62,24 +59,23 @@ export default function SignInPage() {
             Welcome back
           </h1>
           <p className="mt-3 text-slate-600 max-w-md">
-            Sign in to manage employees, schedules, time off and payroll in one
-            place.
+            Sign in to access your HR portal. Manage schedules, time off, and more.
           </p>
           <div className="mt-8 grid grid-cols-2 gap-4">
             <div className="rounded-xl border border-slate-200 bg-white p-4">
               <p className="text-sm font-medium text-slate-800">
-                All-in-one HR
+                For Admins
               </p>
               <p className="text-xs text-slate-500 mt-1">
-                Simple workflows for growing teams
+                Manage employees, rotas & payroll
               </p>
             </div>
             <div className="rounded-xl border border-slate-200 bg-white p-4">
               <p className="text-sm font-medium text-slate-800">
-                Secure access
+                For Employees
               </p>
               <p className="text-xs text-slate-500 mt-1">
-                Role-based and privacy-first
+                View shifts, request leave & more
               </p>
             </div>
           </div>
@@ -93,7 +89,7 @@ export default function SignInPage() {
                 Sign in to LASZ HR
               </h2>
               <p className="text-sm text-slate-600 mt-1">
-                Business admin access
+                Enter your credentials to continue
               </p>
             </div>
 
@@ -108,7 +104,7 @@ export default function SignInPage() {
                   onChange={(e) => setEmail(e.target.value)}
                   required
                   className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500"
-                  placeholder="admin@company.com"
+                  placeholder="you@company.com"
                 />
               </div>
               <div>
@@ -135,9 +131,11 @@ export default function SignInPage() {
               </div>
 
               {error && (
-                <p className="text-sm text-red-600" role="alert">
-                  {error}
-                </p>
+                <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2">
+                  <p className="text-sm text-red-600" role="alert">
+                    {error}
+                  </p>
+                </div>
               )}
 
               <button
@@ -149,14 +147,25 @@ export default function SignInPage() {
               </button>
             </form>
 
-            <div className="mt-6 text-sm text-slate-600">
-              Don’t have an account?{" "}
-              <Link
-                href="/sign-up"
-                className="text-indigo-600 hover:text-indigo-700 font-medium"
-              >
-                Create one
-              </Link>
+            <div className="mt-6 pt-4 border-t border-slate-100 space-y-2">
+              <p className="text-sm text-slate-600">
+                Business admin?{" "}
+                <Link
+                  href="/sign-up"
+                  className="text-indigo-600 hover:text-indigo-700 font-medium"
+                >
+                  Create admin account
+                </Link>
+              </p>
+              <p className="text-sm text-slate-500">
+                Got an employee invitation?{" "}
+                <Link
+                  href="/employee-signup"
+                  className="text-indigo-600 hover:text-indigo-700 font-medium"
+                >
+                  Create employee account
+                </Link>
+              </p>
             </div>
           </div>
         </div>
