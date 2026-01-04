@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
     const sk = process.env.STRIPE_SECRET_KEY;
     if (!sk) return NextResponse.json({ error: "Stripe not configured" }, { status: 500 });
 
-    const stripe = new Stripe(sk, { apiVersion: "2024-06-20" });
+    const stripe = new Stripe(sk, { apiVersion: "2024-06-20" as any });
 
     // Retrieve first to handle already cancelled/scheduled scenarios gracefully
     let existing = await stripe.subscriptions.retrieve(company.stripe_subscription_id);

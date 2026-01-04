@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
   const secret = process.env.STRIPE_WEBHOOK_SECRET!;
   if (!sig || !secret) return NextResponse.json({ error: "Missing webhook secret" }, { status: 400 });
 
-  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, { apiVersion: "2024-06-20" });
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, { apiVersion: "2024-06-20" as any });
 
   const buf = Buffer.from(await req.arrayBuffer());
   let event: Stripe.Event;

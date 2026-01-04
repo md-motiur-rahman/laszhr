@@ -43,7 +43,7 @@ export default async function LeavePage({
       // First try by user_id
       const { data: empByUserId } = await admin
         .from("employees")
-        .select("id, company_id, full_name, email, companies:company_id(company_name)")
+        .select("id, user_id, company_id, full_name, email, companies:company_id(company_name)")
         .eq("user_id", user?.id || "")
         .maybeSingle();
       
@@ -53,7 +53,7 @@ export default async function LeavePage({
         // Fallback: try to find by email (case-insensitive)
         const { data: empByEmail } = await admin
           .from("employees")
-          .select("id, company_id, full_name, email, companies:company_id(company_name)")
+          .select("id, user_id, company_id, full_name, email, companies:company_id(company_name)")
           .ilike("email", user.email)
           .maybeSingle();
         
