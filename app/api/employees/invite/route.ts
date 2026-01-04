@@ -22,7 +22,8 @@ export async function POST(req: NextRequest) {
     }
 
     // Verify the requesting user is an admin of the company
-    const supabase = createServerComponentClient({ cookies });
+    const cookieStore = await cookies();
+    const supabase = createServerComponentClient({ cookies: () => cookieStore as any });
     const {
       data: { user },
     } = await supabase.auth.getUser();

@@ -8,8 +8,9 @@ export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   try {
-        const supabase = createRouteHandlerClient(
-      { cookies },
+    const cookieStore = await cookies();
+    const supabase = createRouteHandlerClient(
+      { cookies: () => cookieStore as any },
       { supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL!, supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY! }
     );
 

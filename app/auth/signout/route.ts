@@ -4,8 +4,9 @@ import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { cookies } from "next/headers";
 
 export async function POST(req: NextRequest) {
+  const cookieStore = await cookies();
   const supabase = createRouteHandlerClient(
-    { cookies },
+    { cookies: () => cookieStore as any },
     {
       supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL!,
       supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,

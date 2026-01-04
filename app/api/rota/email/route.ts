@@ -142,8 +142,9 @@ export async function POST(req: NextRequest) {
     const { employeeId, rangeStart, rangeEnd } = body as { employeeId: string; rangeStart: string; rangeEnd: string };
     if (!employeeId || !rangeStart || !rangeEnd) return NextResponse.json({ error: "Missing params" }, { status: 400 });
 
+    const cookieStore = await cookies();
     const supabase = createServerComponentClient(
-      { cookies },
+      { cookies: () => cookieStore as any },
       { supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL!, supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY! }
     );
 

@@ -10,8 +10,9 @@ export async function POST(req: NextRequest) {
   try {
     const { atPeriodEnd = true } = await req.json().catch(() => ({ atPeriodEnd: true }));
 
+    const cookieStore = await cookies();
     const supabase = createRouteHandlerClient(
-      { cookies },
+      { cookies: () => cookieStore as any },
       { supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL!, supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY! }
     );
 

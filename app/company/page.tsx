@@ -5,8 +5,9 @@ import Link from "next/link";
 import Stripe from "stripe";
 
 export default async function CompanyOverviewPage() {
+  const cookieStore = await cookies();
   const supabase = createServerComponentClient(
-    { cookies },
+    { cookies: () => cookieStore as any },
     {
       supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL!,
       supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,

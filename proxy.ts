@@ -9,7 +9,7 @@ const PUBLIC_PATHS = new Set<string>([
   "/auth/callback", // email confirmation callback
 ]);
 
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   // Always allow Next internals and public assets
@@ -98,45 +98,38 @@ export async function middleware(req: NextRequest) {
 }
 
 async function shouldGateForBilling(supabase: ReturnType<typeof createMiddlewareClient>, userId: string, pathname: string) {
-  // Allow billing routes
-  if (pathname.startsWith("/billing") || pathname.startsWith("/api/billing") || pathname.startsWith("/api/internal/billing") || pathname.startsWith("/api/auth")) {
-    return { gated: false, redirectTo: "/billing" } as const;
-  }
-  // Only gate admins (company owners)
-  const { data: company } = await (supabase as any)
+  // Allow billing pages to fix subscription
+  if (pathname.startsWith("/billing") || pathname.startsWith("/settings")) return { gated: false, redirectTo: "" };
+
+  const { data: company } = await supabase
     .from("companies")
-    .select("subscription_status, trial_end_at, owner_user_id")
+    .select("subscription_status, trial_end_at")
     .eq("owner_user_id", userId)
     .maybeSingle();
-  if (!company) return { gated: false, redirectTo: "/billing" } as const;
+
+  if (!company) return { gated: false, redirectTo: "" };
 
   const now = new Date();
-  const trialEnd = company.trial_end_at ? new Date(company.trial_end_at) : null;
-  const trialExpired = trialEnd ? now > trialEnd : false;
-  const status = company.subscription_status as string | null;
-  const active = status === "active";
+  const trialEnd = (company as any).trial_end_at ? new Date((company as any).trial_end_at) : null;
+  const status = (company as any).subscription_status;
 
-  // Gate if trial expired and not active, or if subscription is canceled
-  if ((trialExpired && !active) || status === "canceled") {
-    return { gated: true, redirectTo: "/billing" } as const;
-  }
-  return { gated: false, redirectTo: "/billing" } as const;
+  // If trial is active, allow access
+  if (trialEnd && trialEnd > now) return { gated: false, redirectTo: "" };
+
+  // If active subscription, allow access
+  if (status === "active" || status === "trialing") return { gated: false, redirectTo: "" };
+
+  // Otherwise, restrict access (redirect to billing/settings)
+  return { gated: true, redirectTo: "/billing" };
 }
 
 async function isCompanyProfileCompleted(supabase: ReturnType<typeof createMiddlewareClient>, userId: string) {
-  const { data, error } = await (supabase as any)
+  const { data: company } = await supabase
     .from("companies")
-    .select("address, phone, company_email, paye_ref")
+    .select("company_name, phone, address")
     .eq("owner_user_id", userId)
     .maybeSingle();
-
-  if (error) return false;
-  if (!data) return false;
-  const { address, phone, company_email, paye_ref } = data as { address?: string; phone?: string; company_email?: string; paye_ref?: string };
-  return Boolean(address && phone && company_email && paye_ref);
+  
+  if (!company) return false;
+  return !!((company as any).company_name && (company as any).phone && (company as any).address);
 }
-
-export const config = {
-  // Apply to all paths except static assets handled above
-  matcher: ["/(.*)"],
-};

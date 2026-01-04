@@ -11,8 +11,9 @@ export async function POST(req: NextRequest) {
     const priceId = body?.priceId || process.env.STRIPE_DEFAULT_PRICE_ID;
     if (!priceId) return NextResponse.json({ error: "Missing priceId" }, { status: 400 });
 
+    const cookieStore = await cookies();
     const supabase = createRouteHandlerClient(
-      { cookies },
+      { cookies: () => cookieStore as any },
       {
         supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL!,
         supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
