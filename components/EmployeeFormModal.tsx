@@ -10,6 +10,7 @@ export type EmployeeRecord = {
   email: string | null;
   phone: string | null;
   department: string | null;
+  position: string | null;
   address: string | null;
   ni_number: string | null;
   id_number: string | null;
@@ -135,6 +136,7 @@ export default function EmployeeFormModal({
     email: initial?.email ?? "",
     phone: initial?.phone ?? "",
     department: initial?.department ?? "",
+    position: initial?.position ?? "",
     address: initial?.address ?? "",
     ni_number: initial?.ni_number ?? "",
     id_number: initial?.id_number ?? "",
@@ -160,6 +162,7 @@ export default function EmployeeFormModal({
         email: initial?.email ?? "",
         phone: initial?.phone ?? "",
         department: initial?.department ?? "",
+        position: initial?.position ?? "",
         address: initial?.address ?? "",
         ni_number: initial?.ni_number ?? "",
         id_number: initial?.id_number ?? "",
@@ -204,6 +207,7 @@ export default function EmployeeFormModal({
       email: form.email || null,
       phone: form.phone || null,
       department: form.department || null,
+      position: form.position || null,
       address: form.address || null,
       ni_number: form.ni_number || null,
       id_number: form.id_number || null,
@@ -279,6 +283,10 @@ export default function EmployeeFormModal({
           </div>
           <div className="grid md:grid-cols-2 gap-6">
             <div className="space-y-2">
+              <label className="block text-sm font-medium text-slate-900">Position</label>
+              <input value={form.position || ""} onChange={(e) => setForm({ ...form, position: e.target.value })} placeholder="Software Engineer" className="w-full rounded-md border border-slate-300 px-3 py-2 text-slate-950 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500" />
+            </div>
+            <div className="space-y-2">
               <label className="block text-sm font-medium text-slate-900">Department</label>
               <select
                 required
@@ -296,7 +304,10 @@ export default function EmployeeFormModal({
                 ))}
               </select>
             </div>
-            <div className="space-y-2 md:col-span-1">
+          </div>
+
+          <div className="grid md:grid-cols-1 gap-6">
+            <div className="space-y-2">
               <label className="block text-sm font-medium text-slate-900">Address</label>
               <textarea required value={form.address || ""} onChange={(e) => setForm({ ...form, address: e.target.value })} placeholder="Street, City, Postcode" className="w-full rounded-md border border-slate-300 px-3 py-2 text-slate-950 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500" />
             </div>

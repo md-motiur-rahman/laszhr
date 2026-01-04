@@ -20,6 +20,31 @@ function mask(value?: string | null, visible = 2) {
   return `${"•".repeat(Math.max(0, clean.length - visible))}${clean.slice(-visible)}`;
 }
 
+type Employee = {
+  id: string;
+  company_id: string;
+  full_name: string;
+  email: string | null;
+  phone: string | null;
+  department: string | null;
+  position: string | null;
+  address: string | null;
+  ni_number: string | null;
+  id_type: string | null;
+  id_number: string | null;
+  date_of_birth: string | null;
+  joined_at: string | null;
+  nationality: string | null;
+  bank_account_name: string | null;
+  bank_name: string | null;
+  sort_code: string | null;
+  account_number: string | null;
+  iban: string | null;
+  building_society_roll_number: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export default async function EmployeeProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const cookieStore = await cookies();
@@ -31,13 +56,15 @@ export default async function EmployeeProfilePage({ params }: { params: Promise<
     }
   );
 
-  const { data: employee, error } = await supabase
+  const { data: employeeData, error } = await supabase
     .from("employees")
     .select(
-      "id, company_id, full_name, email, phone, department, address, ni_number, id_type, id_number, date_of_birth, joined_at, nationality, bank_account_name, bank_name, sort_code, account_number, iban, building_society_roll_number, created_at, updated_at"
+      "id, company_id, full_name, email, phone, department, position, address, ni_number, id_type, id_number, date_of_birth, joined_at, nationality, bank_account_name, bank_name, sort_code, account_number, iban, building_society_roll_number, created_at, updated_at"
     )
     .eq("id", id)
     .maybeSingle();
+
+  const employee = employeeData as Employee | null;
 
   const notFound = !!error || !employee;
 
@@ -74,6 +101,7 @@ export default async function EmployeeProfilePage({ params }: { params: Promise<
                     email: employee?.email || null,
                     phone: employee?.phone || null,
                     department: employee?.department || null,
+                    position: employee?.position || null,
                     address: employee?.address || null,
                     ni_number: employee?.ni_number || null,
                     id_number: employee?.id_number || null,
@@ -125,6 +153,10 @@ export default async function EmployeeProfilePage({ params }: { params: Promise<
                     <div>
                       <div className="text-slate-500">Department</div>
                       <div className="font-medium text-slate-950">{employee.department || "—"}</div>
+                    </div>
+                    <div>
+                      <div className="text-slate-500">Position</div>
+                      <div className="font-medium text-slate-950">{employee.position || "—"}</div>
                     </div>
                     <div>
                       <div className="text-slate-500">Date of birth</div>
