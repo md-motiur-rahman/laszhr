@@ -81,6 +81,13 @@ export default function RotaClient({
   const [exportRange, setExportRange] = useState<"day" | "week">("week");
   const [downloading, setDownloading] = useState(false);
 
+  // UK Bank Holidays (2024-2026)
+  const BANK_HOLIDAYS = [
+    "2024-01-01", "2024-03-29", "2024-04-01", "2024-05-06", "2024-05-27", "2024-08-26", "2024-12-25", "2024-12-26",
+    "2025-01-01", "2025-04-18", "2025-04-21", "2025-05-05", "2025-05-26", "2025-08-25", "2025-12-25", "2025-12-26",
+    "2026-01-01", "2026-04-03", "2026-04-06", "2026-05-04", "2026-05-25", "2026-08-31", "2026-12-25", "2026-12-28"
+  ];
+
   const refMonthDate = useMemo(() => new Date(refMonthISO), [refMonthISO]);
   const monthStart = useMemo(() => new Date(refMonthDate.getFullYear(), refMonthDate.getMonth(), 1, 0, 0, 0, 0), [refMonthDate]);
   const monthEnd = useMemo(() => new Date(refMonthDate.getFullYear(), refMonthDate.getMonth() + 1, 0, 23, 59, 59, 999), [refMonthDate]);
@@ -341,6 +348,13 @@ export default function RotaClient({
     ev.preventDefault?.();
     if (!companyId) return;
 
+    if (BANK_HOLIDAYS.includes(formatYMD(day))) {
+      window.alert("Cannot assign shift: This is a public/bank holiday.");
+      setDragLabel(null);
+      setDragOverKey(null);
+      return;
+    }
+
     const shiftId = ev.dataTransfer?.getData("text/shift_id");
     if (shiftId) {
       const s = shifts.find((x) => x.id === shiftId);
@@ -435,6 +449,11 @@ export default function RotaClient({
 
   async function openCreateForDay(day: Date) {
     if (!filterEmployeeId) return;
+
+    if (BANK_HOLIDAYS.includes(formatYMD(day))) {
+      window.alert("Cannot create shift: This is a public/bank holiday.");
+      return;
+    }
 
     // Prevent duplicate for this employee on this day
     const key = dayKey(day);
@@ -815,21 +834,25 @@ export default function RotaClient({
                 {gridDays.map((d) => {
                   const key = dayKey(d);
                   const inMonth = sameMonth(d, refMonthDate);
+                  const isHoliday = BANK_HOLIDAYS.includes(formatYMD(d));
                   const baseShifts = (shiftsByDay.get(key) || []);
                   const dayShifts = filterEmployeeId ? baseShifts : baseShifts.filter((s) => !deptFilter || (s.department || "") === deptFilter);
                   const dayLeave = leaveByDay.get(key) || [];
                   return (
                     <div
                       key={d.toISOString()}
-                      className={`min-h-[140px] rounded-lg border p-2 transition-colors ${inMonth ? ((d.getDay()===0 || d.getDay()===6) ? "border-sky-200 bg-sky-50" : "border-slate-200 bg-gradient-to-b from-white to-slate-50") : "border-slate-100 bg-slate-50"} ${dragOverKey===key ? "ring-2 ring-indigo-300 bg-indigo-50" : ""}`}
+                      className={`min-h-[140px] rounded-lg border p-2 transition-colors ${isHoliday ? "border-red-200 bg-red-50" : inMonth ? ((d.getDay()===0 || d.getDay()===6) ? "border-sky-200 bg-sky-50" : "border-slate-200 bg-gradient-to-b from-white to-slate-50") : "border-slate-100 bg-slate-50"} ${dragOverKey===key ? "ring-2 ring-indigo-300 bg-indigo-50" : ""}`}
                       onDragOver={(e) => e.preventDefault()}
                       onDragEnter={() => setDragOverKey(key)}
                       onDragLeave={() => setDragOverKey(null)}
                       onDrop={(ev) => handleDropOnDay(ev, d)}
                     >
                       <div className="flex items-center justify-between">
-                        <div className={`${isToday(d) ? "bg-indigo-600 text-white" : (inMonth ? "bg-slate-100 text-slate-700" : "bg-slate-200 text-slate-500")} inline-flex items-center justify-center h-6 min-w-[1.5rem] px-2 rounded-full text-xs font-semibold`}>{fmtCellDate(d)}</div>
-                        {filterEmployeeId && role === "business_admin" && (
+                        <div className="flex items-center gap-2">
+                          <div className={`${isToday(d) ? "bg-indigo-600 text-white" : (isHoliday ? "bg-red-200 text-red-800" : inMonth ? "bg-slate-100 text-slate-700" : "bg-slate-200 text-slate-500")} inline-flex items-center justify-center h-6 min-w-[1.5rem] px-2 rounded-full text-xs font-semibold`}>{fmtCellDate(d)}</div>
+                          {isHoliday && <span className="text-[10px] font-bold text-red-600 uppercase tracking-tight">Public Holiday</span>}
+                        </div>
+                        {filterEmployeeId && role === "business_admin" && !isHoliday && (
                           <button
                             onClick={() => openCreateForDay(d)}
                             className="inline-flex items-center h-6 px-2 rounded bg-indigo-600 text-white text-[10px] hover:bg-indigo-700"
