@@ -28,6 +28,7 @@ type Employee = {
   phone: string | null;
   department: string | null;
   position: string | null;
+  salary: number | null;
   address: string | null;
   ni_number: string | null;
   id_type: string | null;
@@ -59,7 +60,7 @@ export default async function EmployeeProfilePage({ params }: { params: Promise<
   const { data: employeeData, error } = await supabase
     .from("employees")
     .select(
-      "id, company_id, full_name, email, phone, department, position, address, ni_number, id_type, id_number, date_of_birth, joined_at, nationality, bank_account_name, bank_name, sort_code, account_number, iban, building_society_roll_number, created_at, updated_at"
+      "id, company_id, full_name, email, phone, department, position, salary, address, ni_number, id_type, id_number, date_of_birth, joined_at, nationality, bank_account_name, bank_name, sort_code, account_number, iban, building_society_roll_number, created_at, updated_at"
     )
     .eq("id", id)
     .maybeSingle();
@@ -81,6 +82,10 @@ export default async function EmployeeProfilePage({ params }: { params: Promise<
                 </h1>
                 {!notFound && (
                   <div className="mt-2 text-sm text-slate-700 flex flex-wrap gap-3">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 text-purple-700 px-2.5 py-0.5">
+                      <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 7h-9"/><path d="M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></svg>
+                      {employee.position || "No position"}
+                    </span>
                     <span className="inline-flex items-center gap-1 rounded-full bg-indigo-100 text-indigo-700 px-2.5 py-0.5">
                       <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-3-3.87"/><path d="M4 21v-2a4 4 0 0 1 3-3.87"/><circle cx="12" cy="7" r="4"/></svg>
                       {employee.department || "No department"}
@@ -102,6 +107,7 @@ export default async function EmployeeProfilePage({ params }: { params: Promise<
                     phone: employee?.phone || null,
                     department: employee?.department || null,
                     position: employee?.position || null,
+                    salary: employee?.salary || null,
                     address: employee?.address || null,
                     ni_number: employee?.ni_number || null,
                     id_number: employee?.id_number || null,
@@ -157,6 +163,10 @@ export default async function EmployeeProfilePage({ params }: { params: Promise<
                     <div>
                       <div className="text-slate-500">Position</div>
                       <div className="font-medium text-slate-950">{employee.position || "—"}</div>
+                    </div>
+                    <div>
+                      <div className="text-slate-500">Salary</div>
+                      <div className="font-medium text-slate-950">{employee.salary ? `£${employee.salary.toLocaleString()}` : "—"}</div>
                     </div>
                     <div>
                       <div className="text-slate-500">Date of birth</div>

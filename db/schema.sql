@@ -264,6 +264,7 @@ create table if not exists public.employees (
   joined_at date,
   department text,
   position text,
+  salary numeric(12,2),
 
   -- UK bank details
   bank_account_name text,

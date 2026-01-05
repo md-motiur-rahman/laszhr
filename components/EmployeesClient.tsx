@@ -11,6 +11,7 @@ type Employee = {
   phone: string | null;
   department: string | null;
   position: string | null;
+  salary: number | null;
   address: string | null;
   ni_number: string | null;
   id_number: string | null;
@@ -167,7 +168,7 @@ export default function EmployeesClient({ companyId, companyName }: { companyId:
     setError(null);
     const { data, error } = await supabase
       .from("employees")
-      .select("id, full_name, email, phone, department, position, address, ni_number, id_number, id_type, date_of_birth, joined_at, nationality, bank_account_name, bank_name, sort_code, account_number, iban, building_society_roll_number")
+      .select("id, full_name, email, phone, department, position, salary, address, ni_number, id_number, id_type, date_of_birth, joined_at, nationality, bank_account_name, bank_name, sort_code, account_number, iban, building_society_roll_number")
       .eq("company_id", companyId)
       .order("full_name", { ascending: true });
     if (error) {
@@ -211,6 +212,7 @@ export default function EmployeesClient({ companyId, companyName }: { companyId:
       phone: form.phone || null,
       department: form.department || null,
       position: form.position || null,
+      salary: form.salary ? Number(form.salary) : null,
       address: form.address || null,
       ni_number: form.ni_number || null,
       id_number: form.id_number || null,
@@ -322,6 +324,8 @@ export default function EmployeesClient({ companyId, companyName }: { companyId:
                       <tr className="text-left text-slate-900 font-semibold">
                         <th className="py-2 pr-3">Name</th>
                         <th className="py-2 pr-3">Department</th>
+                        <th className="py-2 pr-3">Position</th>
+                        <th className="py-2 pr-3">Salary</th>
                         <th className="py-2 pr-3">Phone</th>
                         <th className="py-2 pr-3">Email</th>
                         <th className="py-2 pr-3">Actions</th>
@@ -332,6 +336,8 @@ export default function EmployeesClient({ companyId, companyName }: { companyId:
                         <tr key={emp.id} className="border-t border-slate-100">
                           <td className="py-2 pr-3 font-semibold text-slate-950">{emp.full_name}</td>
                           <td className="py-2 pr-3 text-slate-950">{emp.department || "—"}</td>
+                          <td className="py-2 pr-3 text-slate-950">{emp.position || "—"}</td>
+                          <td className="py-2 pr-3 text-slate-950">{emp.salary ? `£${emp.salary.toLocaleString()}` : "—"}</td>
                           <td className="py-2 pr-3 text-slate-950">{emp.phone || "—"}</td>
                           <td className="py-2 pr-3 text-slate-950">{emp.email || "—"}</td>
                           <td className="py-2 pr-3">
@@ -378,7 +384,7 @@ export default function EmployeesClient({ companyId, companyName }: { companyId:
                     </div>
                   </div>
                 </div>
-                <div className="grid md:grid-cols-2 gap-6">
+                <div className="grid md:grid-cols-3 gap-6">
                   <div className="space-y-2">
                     <label className="block text-sm font-medium text-slate-900">Position</label>
                     <input value={form.position || ""} onChange={(e) => setForm({ ...form, position: e.target.value })} placeholder="Software Engineer" className="w-full rounded-md border border-slate-300 px-3 py-2 text-slate-950 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500" />
@@ -399,6 +405,10 @@ export default function EmployeesClient({ companyId, companyName }: { companyId:
                         </option>
                       ))}
                     </select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-slate-900">Salary</label>
+                    <input type="number" step="0.01" value={form.salary || ""} onChange={(e) => setForm({ ...form, salary: parseFloat(e.target.value) })} placeholder="50000.00" className="w-full rounded-md border border-slate-300 px-3 py-2 text-slate-950 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500" />
                   </div>
                 </div>
                 <div className="grid md:grid-cols-1 gap-6">

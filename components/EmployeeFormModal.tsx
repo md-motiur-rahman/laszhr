@@ -11,6 +11,7 @@ export type EmployeeRecord = {
   phone: string | null;
   department: string | null;
   position: string | null;
+  salary: number | null;
   address: string | null;
   ni_number: string | null;
   id_number: string | null;
@@ -137,6 +138,7 @@ export default function EmployeeFormModal({
     phone: initial?.phone ?? "",
     department: initial?.department ?? "",
     position: initial?.position ?? "",
+    salary: initial?.salary ?? null,
     address: initial?.address ?? "",
     ni_number: initial?.ni_number ?? "",
     id_number: initial?.id_number ?? "",
@@ -163,6 +165,7 @@ export default function EmployeeFormModal({
         phone: initial?.phone ?? "",
         department: initial?.department ?? "",
         position: initial?.position ?? "",
+        salary: initial?.salary ?? null,
         address: initial?.address ?? "",
         ni_number: initial?.ni_number ?? "",
         id_number: initial?.id_number ?? "",
@@ -208,6 +211,7 @@ export default function EmployeeFormModal({
       phone: form.phone || null,
       department: form.department || null,
       position: form.position || null,
+      salary: form.salary ? Number(form.salary) : null,
       address: form.address || null,
       ni_number: form.ni_number || null,
       id_number: form.id_number || null,
@@ -281,7 +285,7 @@ export default function EmployeeFormModal({
               </div>
             </div>
           </div>
-          <div className="grid md:grid-cols-2 gap-6">
+          <div className="grid md:grid-cols-3 gap-6">
             <div className="space-y-2">
               <label className="block text-sm font-medium text-slate-900">Position</label>
               <input value={form.position || ""} onChange={(e) => setForm({ ...form, position: e.target.value })} placeholder="Software Engineer" className="w-full rounded-md border border-slate-300 px-3 py-2 text-slate-950 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500" />
@@ -303,6 +307,10 @@ export default function EmployeeFormModal({
                   </option>
                 ))}
               </select>
+            </div>
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-slate-900">Salary</label>
+              <input type="number" step="0.01" value={form.salary || ""} onChange={(e) => setForm({ ...form, salary: parseFloat(e.target.value) })} placeholder="50000.00" className="w-full rounded-md border border-slate-300 px-3 py-2 text-slate-950 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500" />
             </div>
           </div>
 

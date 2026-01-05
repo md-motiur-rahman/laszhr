@@ -10,6 +10,7 @@ type EmployeeInput = {
   phone: string | null;
   department: string | null;
   position: string | null;
+  salary: number | null;
   address: string | null;
   ni_number: string | null;
   id_number: string | null;
@@ -112,7 +113,7 @@ export default function EmployeeEditor({ employee }: { employee: EmployeeInput }
                 </div>
               </div>
 
-              <div className="grid md:grid-cols-2 gap-6">
+              <div className="grid md:grid-cols-3 gap-6">
                 <div className="space-y-2">
                   <label className="block text-sm font-medium text-slate-900">Department</label>
                   <input value={form.department || ""} onChange={(e) => setForm({ ...form, department: e.target.value })} className="w-full rounded-md border border-slate-300 px-3 py-2" />
@@ -121,7 +122,11 @@ export default function EmployeeEditor({ employee }: { employee: EmployeeInput }
                   <label className="block text-sm font-medium text-slate-900">Position</label>
                   <input value={form.position || ""} onChange={(e) => setForm({ ...form, position: e.target.value })} className="w-full rounded-md border border-slate-300 px-3 py-2" />
                 </div>
-                <div className="space-y-2 md:col-span-2">
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-slate-900">Salary</label>
+                  <input type="number" step="0.01" value={form.salary || ""} onChange={(e) => setForm({ ...form, salary: parseFloat(e.target.value) })} className="w-full rounded-md border border-slate-300 px-3 py-2" />
+                </div>
+                <div className="space-y-2 md:col-span-3">
                   <label className="block text-sm font-medium text-slate-900">Address</label>
                   <textarea value={form.address || ""} onChange={(e) => setForm({ ...form, address: e.target.value })} className="w-full rounded-md border border-slate-300 px-3 py-2" />
                 </div>
