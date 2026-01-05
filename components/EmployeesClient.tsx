@@ -318,35 +318,43 @@ export default function EmployeesClient({ companyId, companyName }: { companyId:
               ) : view.length === 0 ? (
                 <div className="text-slate-600">No matching employees.</div>
               ) : (
-                <div className="relative max-h-[60vh] overflow-y-auto overflow-x-auto rounded-md">
-                  <table className="min-w-full text-sm">
-                    <thead className="sticky top-0 bg-white">
-                      <tr className="text-left text-slate-900 font-semibold">
-                        <th className="py-2 pr-3">Name</th>
-                        <th className="py-2 pr-3">Department</th>
-                        <th className="py-2 pr-3">Position</th>
-                        <th className="py-2 pr-3">Salary</th>
-                        <th className="py-2 pr-3">Phone</th>
-                        <th className="py-2 pr-3">Email</th>
-                        <th className="py-2 pr-3">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {view.map((emp) => (
-                        <tr key={emp.id} className="border-t border-slate-100">
-                          <td className="py-2 pr-3 font-semibold text-slate-950">{emp.full_name}</td>
-                          <td className="py-2 pr-3 text-slate-950">{emp.department || "—"}</td>
-                          <td className="py-2 pr-3 text-slate-950">{emp.position || "—"}</td>
-                          <td className="py-2 pr-3 text-slate-950">{emp.salary ? `£${emp.salary.toLocaleString()}` : "—"}</td>
-                          <td className="py-2 pr-3 text-slate-950">{emp.phone || "—"}</td>
-                          <td className="py-2 pr-3 text-slate-950">{emp.email || "—"}</td>
-                          <td className="py-2 pr-3">
-                            <Link href={`/employees/${emp.id}`} className="inline-flex items-center h-8 px-3 rounded-md border border-slate-300 bg-white text-slate-900 hover:bg-slate-50">View</Link>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {view.map((emp) => (
+                    <div
+                      key={emp.id}
+                      className="group relative flex flex-col justify-between rounded-xl border border-slate-200 bg-white p-5 shadow-sm hover:border-indigo-300 hover:shadow-md transition-all"
+                    >
+                      <div>
+                        <div className="flex items-center justify-between mb-4">
+                           <div className="h-10 w-10 flex-shrink-0 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-sm">
+                              {(emp.full_name || "?").split(' ').map(n => n[0]).join('').substring(0,2).toUpperCase()}
+                           </div>
+                           <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ring-1 ring-inset ${emp.salary ? 'bg-green-50 text-green-700 ring-green-600/20' : 'bg-slate-50 text-slate-600 ring-slate-500/10'}`}>
+                              {emp.salary ? `£${emp.salary.toLocaleString()}` : "No Salary"}
+                           </span>
+                        </div>
+                        <h3 className="text-base font-semibold text-slate-900 leading-6">
+                          <Link href={`/employees/${emp.id}`}>
+                            <span className="absolute inset-0" aria-hidden="true" />
+                            {emp.full_name}
+                          </Link>
+                        </h3>
+                        <p className="mt-1 text-sm text-slate-500 line-clamp-1" title={emp.position || ""}>{emp.position || "No Position"}</p>
+                        <p className="text-xs text-slate-400 mt-0.5">{emp.department || "No Department"}</p>
+                        
+                        <dl className="mt-4 grid grid-cols-1 gap-y-2 text-xs text-slate-600">
+                           <div className="flex items-center gap-2 truncate">
+                             <svg className="h-4 w-4 text-slate-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                             <span className="truncate" title={emp.email || ""}>{emp.email || "—"}</span>
+                           </div>
+                           <div className="flex items-center gap-2 truncate">
+                             <svg className="h-4 w-4 text-slate-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
+                             <span className="truncate">{emp.phone || "—"}</span>
+                           </div>
+                        </dl>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </>

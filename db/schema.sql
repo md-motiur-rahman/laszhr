@@ -285,6 +285,7 @@ create unique index if not exists employees_company_email_key on public.employee
 
 alter table if exists public.employees add column if not exists joined_at date;
 alter table if exists public.employees add column if not exists position text;
+alter table if exists public.employees add column if not exists salary numeric(12,2);
 
 alter table public.employees enable row level security;
 
