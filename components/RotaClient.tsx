@@ -78,7 +78,8 @@ export default function RotaClient({
   const [createEmpDept, setCreateEmpDept] = useState<string | null>(null);
   // Export controls (only visible in individual employee view)
   const [exportDate, setExportDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
-  const [exportRange, setExportRange] = useState<"day" | "week">("week");
+  const [exportEndDate, setExportEndDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
+  const [exportRange, setExportRange] = useState<"day" | "week" | "custom">("week");
   const [downloading, setDownloading] = useState(false);
 
   // UK Bank Holidays (2024-2026)
@@ -562,9 +563,17 @@ export default function RotaClient({
 
   async function emailRota() {
     if (!filterEmployeeId) return;
+    let rangeStart: Date;
+    let rangeEnd: Date;
     const base = new Date(exportDate + "T00:00:00");
-    const rangeStart = exportRange === "day" ? new Date(base) : startOfWeek(base);
-    const rangeEnd = exportRange === "day" ? new Date(base.getFullYear(), base.getMonth(), base.getDate(), 23, 59, 59, 999) : endOfWeek(base);
+    if (exportRange === "custom") {
+      rangeStart = base;
+      const endBase = new Date(exportEndDate + "T00:00:00");
+      rangeEnd = new Date(endBase.getFullYear(), endBase.getMonth(), endBase.getDate(), 23, 59, 59, 999);
+    } else {
+      rangeStart = exportRange === "day" ? new Date(base) : startOfWeek(base);
+      rangeEnd = exportRange === "day" ? new Date(base.getFullYear(), base.getMonth(), base.getDate(), 23, 59, 59, 999) : endOfWeek(base);
+    }
     const resp = await fetch("/api/rota/email", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -582,32 +591,24 @@ export default function RotaClient({
     if (!filterEmployeeId) return;
     setDownloading(true);
     try {
+      let rangeStart: Date;
+      let rangeEnd: Date;
       const base = new Date(exportDate + "T00:00:00");
-      const rangeStart = exportRange === "day" ? new Date(base) : startOfWeek(base);
-      const rangeEnd = exportRange === "day" ? new Date(base.getFullYear(), base.getMonth(), base.getDate(), 23, 59, 59, 999) : endOfWeek(base);
+      if (exportRange === "custom") {
+        rangeStart = base;
+        const endBase = new Date(exportEndDate + "T00:00:00");
+        rangeEnd = new Date(endBase.getFullYear(), endBase.getMonth(), endBase.getDate(), 23, 59, 59, 999);
+      } else {
+        rangeStart = exportRange === "day" ? new Date(base) : startOfWeek(base);
+        rangeEnd = exportRange === "day" ? new Date(base.getFullYear(), base.getMonth(), base.getDate(), 23, 59, 59, 999) : endOfWeek(base);
+      }
       const rows = await fetchShiftsForExport(filterEmployeeId, rangeStart, rangeEnd);
       const { jsPDF } = await import("jspdf");
       await import("jspdf-autotable");
       const doc = new jsPDF({ unit: "mm", format: "a4" });
 
-      // Header
-      const company = companyName || "Company";
-      const empName = visibleEmployees[0]?.full_name || "Employee";
-      const dept = visibleEmployees[0]?.department || "—";
-      const rangeText = `${rangeStart.toLocaleDateString()} — ${rangeEnd.toLocaleDateString()}`;
-
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(16);
-      doc.text(company, 14, 16);
-
-      doc.setFontSize(12);
-      doc.setFont("helvetica", "normal");
-      doc.text(`Employee: ${empName}`, 14, 24);
-      doc.text(`Department: ${dept}`, 14, 30);
-      doc.text(`Range: ${rangeText}`, 14, 36);
-
-      doc.setDrawColor(60);
-      doc.line(14, 40, 196, 40);
+      // Calculate total duration (in minutes) during layout
+      let totalMinutes = 0;
 
       const body = rows.map((r: ExportShiftRow) => {
         const d = new Date(r.start_time);
@@ -616,6 +617,9 @@ export default function RotaClient({
         let mins = Math.max(0, Math.round((e.getTime() - s.getTime()) / 60000));
         const b = (r as any).break_minutes ?? 0;
         mins = Math.max(0, mins - (typeof b === "number" ? b : Number(b) || 0));
+        
+        totalMinutes += mins;
+
         const hh = String(Math.floor(mins / 60)).padStart(2, "0");
         const mm = String(mins % 60).padStart(2, "0");
         const dayName = d.toLocaleDateString(undefined, { weekday: "short" });
@@ -630,19 +634,102 @@ export default function RotaClient({
         ];
       });
 
+      // Total duration formatted
+      const totalHours = Math.floor(totalMinutes / 60);
+      const totalMinsRemaining = totalMinutes % 60;
+      const totalDurationStr = `${totalHours}h ${totalMinsRemaining}m`;
+
+      // Brand color (indigo-600: #4f46e5 -> rgb 79, 70, 229)
+      const primaryColor: [number, number, number] = [79, 70, 229];
+
+      // Header Banner (Solid line)
+      doc.setDrawColor(...primaryColor);
+      doc.setLineWidth(1.5);
+      doc.line(14, 18, 196, 18);
+
+      // Header Text
+      const company = companyName || "Company";
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(18);
+      doc.setTextColor(15, 23, 42); // slate-900
+      doc.text("ROTA SCHEDULE", 14, 28);
+      
+      doc.setFontSize(14);
+      doc.setTextColor(71, 85, 105); // slate-600
+      doc.text(company, 196, 28, { align: "right" });
+
+      // Employee Info Details
+      const empName = visibleEmployees[0]?.full_name || "Employee";
+      const dept = visibleEmployees[0]?.department || "—";
+      
+      const dateFormatter = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+      const rangeText = `${dateFormatter.format(rangeStart)}  —  ${dateFormatter.format(rangeEnd)}`;
+
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(15, 23, 42);
+      doc.text("Employee:", 14, 38);
+      doc.setFont("helvetica", "normal");
+      doc.text(empName, 36, 38);
+
+      doc.setFont("helvetica", "bold");
+      doc.text("Department:", 14, 44);
+      doc.setFont("helvetica", "normal");
+      doc.text(dept, 36, 44);
+
+      doc.setFont("helvetica", "bold");
+      doc.text("Period:", 196, 38, { align: "right" });
+      doc.setFont("helvetica", "normal");
+      doc.text(rangeText, 196, 44, { align: "right" });
+
+      // Total Hours Highlight
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(15, 23, 42);
+      doc.text("Total Scheduled:", 14, 54);
+      doc.setTextColor(...primaryColor);
+      doc.text(totalDurationStr, 48, 54);
+      
+      doc.setDrawColor(226, 232, 240); // slate-200
+      doc.setLineWidth(0.5);
+      doc.line(14, 58, 196, 58);
+
       if (body.length === 0) {
         doc.setFontSize(11);
-        doc.text("No shifts in selected range.", 14, 48);
+        doc.setTextColor(100, 116, 139); // slate-500
+        doc.text("No shifts scheduled in this period.", 14, 70);
       } else {
         (doc as any).autoTable({
-          startY: 46,
+          startY: 62,
           head: [["Date", "Day", "Start", "End", "Duration", "Department", "Role"]],
           body,
           theme: "grid",
-          styles: { fontSize: 10, cellPadding: 2 },
-          headStyles: { fillColor: [79, 70, 229], textColor: 255 },
-          alternateRowStyles: { fillColor: [245, 247, 255] },
+          styles: { 
+            fontSize: 9, 
+            cellPadding: 3,
+            font: "helvetica",
+            lineColor: [226, 232, 240], // slate-200
+            lineWidth: 0.1,
+          },
+          headStyles: { 
+            fillColor: [248, 250, 252], // slate-50
+            textColor: [15, 23, 42], // slate-900
+            fontStyle: "bold",
+            lineWidth: 0.2,
+            lineColor: [203, 213, 225], // slate-300
+          },
+          alternateRowStyles: { fillColor: [250, 250, 250] },
           margin: { left: 14, right: 14 },
+          didDrawPage: function (data: any) {
+             // Footer on every page
+             doc.setFontSize(8);
+             doc.setTextColor(148, 163, 184); // slate-400
+             doc.text(
+               `Generated on ${new Date().toLocaleString()}  —  Page ${data.pageNumber}`, 
+               14, 
+               doc.internal.pageSize.getHeight() - 10
+             );
+          }
         });
       }
 
@@ -798,6 +885,17 @@ export default function RotaClient({
                       onChange={(e) => setExportDate(e.target.value)}
                       className="h-7 rounded-md border border-slate-300 bg-white px-2 text-[11px] text-slate-950"
                     />
+                    {exportRange === "custom" && (
+                      <>
+                        <label className="text-slate-600">to</label>
+                        <input
+                          type="date"
+                          value={exportEndDate}
+                          onChange={(e) => setExportEndDate(e.target.value)}
+                          className="h-7 rounded-md border border-slate-300 bg-white px-2 text-[11px] text-slate-950"
+                        />
+                      </>
+                    )}
                     <select
                       value={exportRange}
                       onChange={(e) => setExportRange(e.target.value as any)}
@@ -805,6 +903,7 @@ export default function RotaClient({
                     >
                       <option value="day">Day</option>
                       <option value="week">Week</option>
+                      <option value="custom">Custom</option>
                     </select>
                     <button
                       onClick={downloadPdf}
